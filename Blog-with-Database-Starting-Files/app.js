@@ -22,8 +22,6 @@ app.use(express.static("public"));
 
 mongoose.connect("mongodb://127.0.0.1:27017/blogDB", { useNewUrlParser: true });
 
-let posts = [];
-
 const postSchema = {
   title: String,
   content: String,
@@ -32,10 +30,19 @@ const postSchema = {
 const Post = mongoose.model("Post", postSchema);
 
 app.get("/", function (req, res) {
-  res.render("home", {
-    startingContent: homeStartingContent,
-    posts: posts,
-  });
+  Post.find({})
+    .then(function (foundPost) {
+      console.log("exist");
+
+      res.render("home", {
+        startingContent: homeStartingContent,
+        posts: foundPost,
+      });
+    })
+    .catch(function (err) {
+      console.log(err);
+      res.status(500).send("an error occured while fetching data");
+    });
 });
 
 app.get("/about", function (req, res) {
@@ -56,24 +63,30 @@ app.post("/compose", function (req, res) {
     content: req.body.postBody,
   });
 
-  post.save();
-
-  res.redirect("/");
-});
-
-app.get("/posts/:postName", function (req, res) {
-  const requestedTitle = _.lowerCase(req.params.postName);
-
-  posts.forEach(function (post) {
-    const storedTitle = _.lowerCase(post.title);
-
-    if (storedTitle === requestedTitle) {
-      res.render("post", {
-        title: post.title,
-        content: post.content,
-      });
+  post.save(function (err) {
+    if (!err) {
+      res.redirect("/");
     }
   });
+});
+
+app.get("/posts/:postId", function (req, res) {
+  const requestedPostId = req.params.postId;
+  console.log(requestedPostId);
+  Post.findOne({ _id: requestedPostId })
+    .then((post) => {
+      if (post) {
+        res.render("post", {
+          title: post.title,
+          content: post.content,
+        });
+      } else {
+        res.status(404).send("post not found");
+      }
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
 });
 
 app.listen(3000, function () {
